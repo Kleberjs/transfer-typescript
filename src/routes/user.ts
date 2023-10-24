@@ -66,8 +66,10 @@ export async function user(fastify: FastifyInstance ) {
     }
   })
   
-  fastify.get('/user', (request, reply) => {
-    
+  fastify.get('/user', async (request, reply) => {
+    const users = await prisma.user.findMany()
+
+    return reply.send(users);
   })
 
   fastify.get('/user/:id', (request, reply) => {
