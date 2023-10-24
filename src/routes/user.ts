@@ -67,18 +67,41 @@ export async function user(fastify: FastifyInstance ) {
   })
   
   fastify.get('/user', async (request, reply) => {
-    // adicionar paginação
     // antes adicionar validação de token
     // antes adicionar adicionar validação de core
-    const users = await prisma.user.findMany()
 
-    const result = users.map(u => ({
-      fullname: u?.fullname,
-      email: u?.email,
-      documentNumber: u?.documentNumber
-    }))
+    const UserSchema = z.object({
+      page: z.coerce.number().optional()
+    })
 
-    return reply.send(result);
+    try {
+      const { page } = UserSchema.parse(request.query)
+
+      const take = 2
+      const pagination = page ?? 1
+      const skip = (pagination - 1) * take
+  
+      const users = await prisma.user.findMany({
+        skip,
+        take
+      })
+  
+      const result = users.map(u => ({
+        fullname: u?.fullname,
+        email: u?.email,
+        documentNumber: u?.documentNumber
+      }))
+  
+      return reply.send(result)
+      
+    } catch (err) {
+      if (err instanceof ZodError) {
+        const errorFromZod = fromZodError(err)
+        return reply.status(400).send(errorFromZod)
+      }
+
+      return reply.send(err)
+    }
   })
 
   fastify.get('/user/:id', async (request, reply) => {
