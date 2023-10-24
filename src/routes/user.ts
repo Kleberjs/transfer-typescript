@@ -152,11 +152,13 @@ export async function user(fastify: FastifyInstance ) {
     const UserSchemaParams = z.object({
       id: z.coerce.number()
     })
+
     const UserSchemaBody = z.object({
       fullname: z.string(),
       documentNumber: z.string().min(11).max(14),
       email: z.string().email()
-    });
+    })
+
     try {
       const { id } = UserSchemaParams.parse(request.params)
       const {
@@ -168,8 +170,6 @@ export async function user(fastify: FastifyInstance ) {
       const user = await prisma.user.findFirst({
         where: { id }
       })
-
-      console.log(user);
 
       if (!user) return reply.status(400).send('User not found')
 
