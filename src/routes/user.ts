@@ -5,6 +5,9 @@ import { fromZodError  } from 'zod-validation-error'
 import { prisma } from '../lib/prisma'
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library'
 
+    // antes adicionar validação de token
+    // antes adicionar adicionar validação de core
+
 type RequestBodyPost = FastifyRequest<{
   Body: {
     fullname: string,
@@ -12,6 +15,14 @@ type RequestBodyPost = FastifyRequest<{
     email: string,
     password: string,
     confirmPassword: string
+  }
+}>
+
+type RequestBodyPut = FastifyRequest<{
+  Body: {
+    fullname: string,
+    documentNumber: string,
+    email: string,
   }
 }>
 
@@ -66,9 +77,11 @@ export async function user(fastify: FastifyInstance ) {
     }
   })
   
-  fastify.get('/user', async (request, reply) => {
-    // antes adicionar validação de token
-    // antes adicionar adicionar validação de core
+  fastify.get('/user', async (request, reply: FastifyReply) => {
+
+    // receber limite no queryString e limitar/padronizar a 1000
+    // receber campo de ordernação no queryString e padronizar por id
+    // receber tipo de ordenação no queryString e padronizar por ASC
 
     const UserSchema = z.object({
       page: z.coerce.number().optional()
@@ -104,7 +117,7 @@ export async function user(fastify: FastifyInstance ) {
     }
   })
 
-  fastify.get('/user/:id', async (request, reply) => {
+  fastify.get('/user/:id', async (request, reply: FastifyReply) => {
     const UserSquema = z.object({
       id: z.coerce.number()
     });
@@ -121,6 +134,7 @@ export async function user(fastify: FastifyInstance ) {
         email: user?.email,
         documentNumber: user?.documentNumber 
       }
+
       return reply.send(result)
 
     } catch (err) {
@@ -134,8 +148,56 @@ export async function user(fastify: FastifyInstance ) {
     
   })
 
+  fastify.put('/user/:id', async (request: RequestBodyPut, reply: FastifyReply) => {
+    const UserSchemaParams = z.object({
+      id: z.coerce.number()
+    })
+    const UserSchemaBody = z.object({
+      fullname: z.string(),
+      documentNumber: z.string().min(11).max(14),
+      email: z.string().email()
+    });
+    try {
+      const { id } = UserSchemaParams.parse(request.params)
+      const {
+        fullname,
+        documentNumber,
+        email
+      } = UserSchemaBody.parse(request.body);
 
-  fastify.put('/user/:id', (request, reply) => {
+      const user = await prisma.user.findFirst({
+        where: { id }
+      })
+
+      console.log(user);
+
+      if (!user) return reply.status(400).send('User not found')
+
+      await prisma.user.update({
+        where: { id },
+        data: {
+          fullname,
+          documentNumber,
+          email
+        }
+      })
+
+      return reply.status(204).send()
+
+    } catch (err) {
+      if(err instanceof ZodError) {
+        const errorFromZod = fromZodError(err)
+        return reply.status(400).send(errorFromZod)
+      }
+
+      return reply.send(err);
+    }
+
+    
+
+  })
+
+  fastify.put('/user/password/:id', (request, reply) => {
     
   })
 
