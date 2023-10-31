@@ -261,7 +261,29 @@ export async function user(fastify: FastifyInstance ) {
 
   })
 
-  fastify.delete('/user/:id', (request, reply) => {
-    
+  fastify.delete('/user/:id', async (request, reply) => {
+    const UserSchema = z.object({
+      id: z.coerce.number()
+    })
+
+    try {
+      const { id } = UserSchema.parse(request.params)
+      
+      const user = await prisma.user.findFirst({ where: { id } })
+
+      if (!user) return reply.status(400).send('User not found')
+
+      await prisma.user.delete({ where: { id }})
+
+      return reply.status(201).send()
+
+    } catch (err) {
+      if (err instanceof ZodError) {
+        const errorFromZod = fromZodError(err);
+        return reply.status(400).send(errorFromZod)
+      }
+
+      return reply.send(err)
+    }
   })
 }
