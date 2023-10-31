@@ -199,8 +199,66 @@ export async function user(fastify: FastifyInstance ) {
 
   })
 
-  fastify.put('/user/password/:id', (request, reply) => {
+  fastify.put('/user/password/:id', async (request, reply) => {
+    const UserSchemaParams = z.object({
+      id: z.coerce.number()
+    })
+
+    const UserSchemaBody = z.object({
+      passwordOld: z.string().min(8),
+      newPassword: z.string().min(8),
+      confirmNewPassword: z.string().min(8)
+    }).refine(data => data.newPassword === data.confirmNewPassword, {
+      message: "password don't match",
+      path: ['confirmNewPassword']
+    })
+
+    try {
+      const { id } = UserSchemaParams.parse(request.params)
+      const {
+        passwordOld,
+        newPassword
+      } = UserSchemaBody.parse(request.body)
+
+
+    const user = await prisma.user.findFirst({
+      where: { id }
+    })
+
+    if (!user) return reply.status(400).send('User not found')
+
+    const isOldPassword = await bcrypt.compare(passwordOld, user.password)
+
+    if (!isOldPassword) return reply.status(401).send('Old password is incorrect')
+
+    const isSamePasswordBefore = await bcrypt.compare(newPassword, user.password)
+
+    if (isSamePasswordBefore) return reply.status(400).send('You are using the same password as before')
+
+    const saltRounds = 10
+    const password = await bcrypt.hash(newPassword, saltRounds)
+
+    await prisma.user.update({
+      where: { id },
+      data: {
+        password
+      }
+    })
+
+    return reply.status(201).send()
+
+    } catch (err) {
+      if (err instanceof ZodError) {
+        const errorFromZod = fromZodError(err)
+        return reply.status(400).send(errorFromZod)
+      }
+
+      return reply.send(err)
+    }
+
     
+
+
   })
 
   fastify.delete('/user/:id', (request, reply) => {
