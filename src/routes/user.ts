@@ -129,6 +129,8 @@ export async function user(fastify: FastifyInstance ) {
         where: { id }
       });
 
+      if (!user) return reply.status(400).send('User not found')
+
       const result = {
         fullname: user?.fullname,
         email: user?.email,
